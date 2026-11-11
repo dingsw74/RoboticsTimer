@@ -1,0 +1,5 @@
+{
+  "testMode": true,
+  "sheet": "REPLACE_WITH_DEDICATED_TEST_SPREADSHEET_ID",
+  "tokenDirectory": "tokens-test"
+}
