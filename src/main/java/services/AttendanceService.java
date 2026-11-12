@@ -48,6 +48,7 @@ public class AttendanceService {
     return Optional.of(
         new AttendanceSummary(
             status,
+            repository.getUserName(row),
             repository.getLastTimeHours(row),
             repository.getTotalHours(row),
             lastLogin,

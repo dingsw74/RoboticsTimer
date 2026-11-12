@@ -237,7 +237,7 @@ public class GrizzlyScene {
     String action = loggingIn ? "Login" : "Logout";
     String message = attendanceConfirmationDetails(userId, summary, loggingIn);
 
-    if (alertUtils.confirmInput(action, message)) {
+    if (alertUtils.confirmInput(action, summary == null ? null : summary.getUserName(), message)) {
       loginUser(userId);
     } else {
       setMessageBoxText("");
@@ -248,6 +248,11 @@ public class GrizzlyScene {
   private String attendanceConfirmationDetails(
       String userId, AttendanceSummary summary, boolean loggingIn) {
     StringBuilder details = new StringBuilder("User ID: ").append(userId);
+    if (summary != null
+        && summary.getUserName() != null
+        && !summary.getUserName().trim().isEmpty()) {
+      details.append("\nName: ").append(summary.getUserName().trim());
+    }
     details.append("\nAction: ").append(loggingIn ? "LOGIN" : "LOGOUT");
     details
         .append("\nTotal hours so far: ")

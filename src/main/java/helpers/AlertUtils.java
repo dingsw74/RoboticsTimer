@@ -69,16 +69,18 @@ public class AlertUtils {
     }
   }
 
-  public boolean confirmInput(String action, String message) {
+  public boolean confirmInput(String action, String userName, String message) {
+    String target = userName == null || userName.trim().isEmpty() ? "this user" : userName.trim();
+    String header = action + " " + target + "?";
     if (Platform.isFxApplicationThread()) {
-      return customDialog("Confirm " + action, action + " this user?", message);
+      return customDialog("Confirm " + action, header, message);
     }
 
     AtomicBoolean result = new AtomicBoolean();
     AtomicBoolean isSet = new AtomicBoolean();
     Platform.runLater(
         () -> {
-          result.set(customDialog("Confirm " + action, action + " this user?", message));
+          result.set(customDialog("Confirm " + action, header, message));
           isSet.set(true);
         });
 

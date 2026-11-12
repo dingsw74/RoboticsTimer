@@ -20,6 +20,7 @@ public class AttendanceServiceTest {
 
     Assert.assertEquals(AttendanceStatus.NOT_FOUND, service.getStatus("missing"));
     Assert.assertEquals(AttendanceStatus.LOGGED_OUT, service.getStatus(USER_ID));
+    Assert.assertEquals("Alex Ding", service.getSummary(USER_ID).get().getUserName());
     Assert.assertEquals("00:30:00", service.getSummary(USER_ID).get().getLastTimeHours());
     Assert.assertEquals("12:45:00", service.getSummary(USER_ID).get().getTotalHours());
     Assert.assertEquals(
@@ -120,6 +121,11 @@ public class AttendanceServiceTest {
     @Override
     public boolean isLoggedIn(int userRow) {
       return loggedIn;
+    }
+
+    @Override
+    public String getUserName(int userRow) {
+      return "Alex Ding";
     }
 
     @Override

@@ -228,6 +228,11 @@ public class AttendanceHttpServerTest {
     }
 
     @Override
+    public String getUserName(int userRow) {
+      return "Alex Ding";
+    }
+
+    @Override
     public Optional<LocalDateTime> getLastLogin(int userRow) {
       return Optional.ofNullable(lastLogin);
     }

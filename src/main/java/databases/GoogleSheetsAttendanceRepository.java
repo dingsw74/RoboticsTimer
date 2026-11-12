@@ -38,6 +38,17 @@ public class GoogleSheetsAttendanceRepository implements AttendanceRepository {
   }
 
   @Override
+  public String getUserName(int userRow) {
+    String firstName =
+        valueOrEmpty(dbUtils.getCellData(userRow, Constants.kFirstNameColumn, Constants.kMainSheet))
+            .trim();
+    String lastName =
+        valueOrEmpty(dbUtils.getCellData(userRow, Constants.kLastNameColumn, Constants.kMainSheet))
+            .trim();
+    return (firstName + " " + lastName).trim();
+  }
+
+  @Override
   public Optional<LocalDateTime> getLastLogin(int userRow) {
     return getTimestamp(userRow, Constants.kLastLoginColumn);
   }

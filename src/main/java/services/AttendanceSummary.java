@@ -6,6 +6,7 @@ import java.util.Optional;
 
 public class AttendanceSummary {
   private final AttendanceStatus status;
+  private final String userName;
   private final String lastTimeHours;
   private final String totalHours;
   private final Optional<LocalDateTime> lastLogin;
@@ -14,12 +15,14 @@ public class AttendanceSummary {
 
   public AttendanceSummary(
       AttendanceStatus status,
+      String userName,
       String lastTimeHours,
       String totalHours,
       Optional<LocalDateTime> lastLogin,
       Optional<LocalDateTime> lastLogout,
       Optional<Duration> currentCheckInDuration) {
     this.status = status;
+    this.userName = userName;
     this.lastTimeHours = lastTimeHours;
     this.totalHours = totalHours;
     this.lastLogin = lastLogin;
@@ -29,6 +32,10 @@ public class AttendanceSummary {
 
   public AttendanceStatus getStatus() {
     return status;
+  }
+
+  public String getUserName() {
+    return userName;
   }
 
   public String getLastTimeHours() {
