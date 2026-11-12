@@ -38,9 +38,21 @@ public class AttendanceService {
     int row = userRow.get();
     AttendanceStatus status =
         repository.isLoggedIn(row) ? AttendanceStatus.LOGGED_IN : AttendanceStatus.LOGGED_OUT;
+    Optional<LocalDateTime> lastLogin = repository.getLastLogin(row);
+    Optional<LocalDateTime> lastLogout =
+        status == AttendanceStatus.LOGGED_OUT ? repository.getLastLogout(row) : Optional.empty();
+    Optional<Duration> currentCheckInDuration =
+        status == AttendanceStatus.LOGGED_IN && lastLogin.isPresent()
+            ? Optional.of(Duration.between(lastLogin.get(), LocalDateTime.now(clock)))
+            : Optional.empty();
     return Optional.of(
         new AttendanceSummary(
-            status, repository.getLastTimeHours(row), repository.getTotalHours(row)));
+            status,
+            repository.getLastTimeHours(row),
+            repository.getTotalHours(row),
+            lastLogin,
+            lastLogout,
+            currentCheckInDuration));
   }
 
   public AttendanceStatus loginUser(String userId) {
@@ -77,7 +89,11 @@ public class AttendanceService {
       throw new InvalidAttendanceTransitionException("User is not logged in.");
     }
 
-    LocalDateTime loginTime = repository.getLastLogin(userRow.get());
+    LocalDateTime loginTime =
+        repository
+            .getLastLogin(userRow.get())
+            .orElseThrow(
+                () -> new IllegalStateException("Logged-in user has no recorded login time."));
     Duration duration = Duration.between(loginTime, logoutTime);
     boolean durationIsValid =
         !duration.isNegative() && loginTime.toLocalDate().equals(logoutTime.toLocalDate());

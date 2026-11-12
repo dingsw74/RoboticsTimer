@@ -69,6 +69,25 @@ public class AlertUtils {
     }
   }
 
+  public boolean confirmInput(String action, String message) {
+    if (Platform.isFxApplicationThread()) {
+      return customDialog("Confirm " + action, action + " this user?", message);
+    }
+
+    AtomicBoolean result = new AtomicBoolean();
+    AtomicBoolean isSet = new AtomicBoolean();
+    Platform.runLater(
+        () -> {
+          result.set(customDialog("Confirm " + action, action + " this user?", message));
+          isSet.set(true);
+        });
+
+    while (!isSet.get()) {
+      // wait until the user has responded to the dialog
+    }
+    return result.get();
+  }
+
   private boolean customDialog(String title, String header, String message) {
     // Create the custom dialog.
     Dialog dialog = new Dialog<>();

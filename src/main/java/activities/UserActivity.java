@@ -8,11 +8,13 @@ import helpers.AlertUtils;
 import helpers.Constants;
 import helpers.LoggingUtils;
 import java.util.ArrayList;
+import java.util.Optional;
 import java.util.logging.Level;
 import javafx.application.Platform;
 import scenes.GrizzlyScene;
 import services.AttendanceService;
 import services.AttendanceStatus;
+import services.AttendanceSummary;
 import services.LogoutResult;
 
 public class UserActivity {
@@ -47,6 +49,10 @@ public class UserActivity {
     createNewUser(userData, userID);
 
     return false;
+  }
+
+  public Optional<AttendanceSummary> getAttendanceSummary(String userID) throws Exception {
+    return attendanceService.getSummary(userID);
   }
 
   public void createNewUser(ArrayList<String> userData, String userID)

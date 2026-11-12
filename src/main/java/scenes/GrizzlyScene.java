@@ -11,6 +11,10 @@ import helpers.Constants;
 import helpers.LoggingUtils;
 import java.io.File;
 import java.net.NoRouteToHostException;
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Optional;
 import java.util.logging.Level;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
@@ -27,6 +31,8 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.text.Text;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
+import services.AttendanceStatus;
+import services.AttendanceSummary;
 
 public class GrizzlyScene {
   /**
@@ -49,6 +55,9 @@ public class GrizzlyScene {
   private BorderPane bottomPane = new BorderPane();
 
   private AlertUtils alertUtils = new AlertUtils();
+
+  private static final DateTimeFormatter ATTENDANCE_TIME_FORMAT =
+      DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
   private GridPane subRoot = new GridPane();
 
@@ -175,7 +184,7 @@ public class GrizzlyScene {
   private void confirmLogin() {
     setMessageBoxText("Processing...");
 
-    // confirm the ID is vslid
+    // confirm that the ID is valid
     if (!userActivity.isValidID(studentIDBox.getText())) {
       setMessageBoxText("ID " + studentIDBox.getText() + " is invalid.");
 
@@ -195,30 +204,119 @@ public class GrizzlyScene {
       return;
     }
 
-    if (!handsFreeMode) {
-      // confirm that the user wants to login/logout
-      if (alertUtils.confirmInput("Confirm login/logout of user: " + studentIDBox.getText())) {
-        loginUser();
-      } else {
-        setMessageBoxText("");
-      }
+    String userId = studentIDBox.getText();
+    if (handsFreeMode) {
+      loginUser(userId);
+      return;
+    }
 
-      // show no prompts
+    studentIDBox.setDisable(true);
+    loginButton.setDisable(true);
+    Thread preview =
+        new Thread(
+            () -> {
+              try {
+                Optional<AttendanceSummary> summary = userActivity.getAttendanceSummary(userId);
+                Platform.runLater(() -> confirmAttendance(userId, summary));
+              } catch (Exception e) {
+                LoggingUtils.log(Level.SEVERE, e);
+                Platform.runLater(
+                    () -> {
+                      showAttendanceError(e);
+                      setInputDisabled(false);
+                    });
+              }
+            });
+    preview.setDaemon(true);
+    preview.start();
+  }
+
+  private void confirmAttendance(String userId, Optional<AttendanceSummary> optionalSummary) {
+    AttendanceSummary summary = optionalSummary.orElse(null);
+    boolean loggingIn = summary == null || summary.getStatus() != AttendanceStatus.LOGGED_IN;
+    String action = loggingIn ? "Login" : "Logout";
+    String message = attendanceConfirmationDetails(userId, summary, loggingIn);
+
+    if (alertUtils.confirmInput(action, message)) {
+      loginUser(userId);
     } else {
-      loginUser();
+      setMessageBoxText("");
+      setInputDisabled(false);
     }
   }
 
+  private String attendanceConfirmationDetails(
+      String userId, AttendanceSummary summary, boolean loggingIn) {
+    StringBuilder details = new StringBuilder("User ID: ").append(userId);
+    details.append("\nAction: ").append(loggingIn ? "LOGIN" : "LOGOUT");
+    details
+        .append("\nTotal hours so far: ")
+        .append(summary == null ? "00:00:00" : valueOrUnavailable(summary.getTotalHours()));
+
+    if (summary == null) {
+      details.append("\nNo previous check-in.");
+    } else if (loggingIn) {
+      if (!summary.getLastLogin().isPresent() && !summary.getLastLogout().isPresent()) {
+        details.append("\nNo previous check-in.");
+      } else {
+        details
+            .append("\nLast check-in start: ")
+            .append(formatAttendanceTime(summary.getLastLogin()));
+        details
+            .append("\nLast check-in end: ")
+            .append(formatAttendanceTime(summary.getLastLogout()));
+        details
+            .append("\nLast check-in period: ")
+            .append(valueOrUnavailable(summary.getLastTimeHours()));
+      }
+    } else {
+      details
+          .append("\nCurrent check-in start: ")
+          .append(formatAttendanceTime(summary.getLastLogin()));
+      details
+          .append("\nCurrent check-in period: ")
+          .append(formatDuration(summary.getCurrentCheckInDuration()));
+    }
+    return details.toString();
+  }
+
+  private String formatAttendanceTime(Optional<LocalDateTime> time) {
+    return time.isPresent() ? time.get().format(ATTENDANCE_TIME_FORMAT) : "Not available";
+  }
+
+  private String formatDuration(Optional<Duration> optionalDuration) {
+    if (!optionalDuration.isPresent()) {
+      return "Not available";
+    }
+    Duration duration = optionalDuration.get();
+    boolean negative = duration.isNegative();
+    long seconds = Math.abs(duration.getSeconds());
+    long hours = seconds / 3600;
+    long minutes = (seconds % 3600) / 60;
+    long remainingSeconds = seconds % 60;
+    return String.format("%s%02d:%02d:%02d", negative ? "-" : "", hours, minutes, remainingSeconds);
+  }
+
+  private String valueOrUnavailable(String value) {
+    return value == null || value.trim().isEmpty() ? "Not available" : value;
+  }
+
+  private void setInputDisabled(boolean disabled) {
+    studentIDBox.setDisable(disabled);
+    loginButton.setDisable(disabled);
+  }
+
   // login the user, check if hands free or not
-  private void loginUser() {
+  private void loginUser(String userId) {
     // separate login process on different thread to ensure
     // main application does not freeze
     // also allows in for multiple users login simultaneously
     Runnable loginUser =
         () -> {
           // ensure that the user typed something in
-          if (studentIDBox.getText().isEmpty()) {
+          if (userId.isEmpty()) {
             setMessageBoxText("Nothing was entered!");
+            Platform.runLater(() -> setInputDisabled(false));
             return;
           }
 
@@ -226,27 +324,22 @@ public class GrizzlyScene {
           // do nothing if account creation was cancelled
           try {
             // check if the user is logged in, and that user exists
-            if (!(userActivity.isUserLoggedIn(studentIDBox.getText()))) {
-              LoggingUtils.log(Level.INFO, "Logging in: " + studentIDBox.getText());
-              userActivity.loginUser(studentIDBox.getText());
+            if (!(userActivity.isUserLoggedIn(userId))) {
+              LoggingUtils.log(Level.INFO, "Logging in: " + userId);
+              userActivity.loginUser(userId);
 
             } else {
-              LoggingUtils.log(Level.INFO, "Logging out: " + studentIDBox.getText());
-              userActivity.logoutUser(studentIDBox.getText());
+              LoggingUtils.log(Level.INFO, "Logging out: " + userId);
+              userActivity.logoutUser(userId);
             }
 
           } catch (CancelledUserCreationException e) {
             setMessageBoxText("Cancelled account creation");
 
-          } catch (ConnectToWorksheetException e) {
-            setMessageBoxText("There was an error connecting to the database. Please retry.");
-
-          } catch (NoRouteToHostException e) {
-            setMessageBoxText("Unable to connect to database. Check internet and retry.");
-
           } catch (Exception e) {
-            LoggingUtils.log(Level.SEVERE, e);
-            setMessageBoxText("An unknown error has occurred, see log file.");
+            showAttendanceError(e);
+          } finally {
+            Platform.runLater(() -> setInputDisabled(false));
           }
 
           // refocus the textbox
@@ -257,6 +350,17 @@ public class GrizzlyScene {
     Thread t = new Thread(loginUser);
     t.setDaemon(true);
     t.start();
+  }
+
+  private void showAttendanceError(Exception e) {
+    if (e instanceof ConnectToWorksheetException) {
+      setMessageBoxText("There was an error connecting to the database. Please retry.");
+    } else if (e instanceof NoRouteToHostException) {
+      setMessageBoxText("Unable to connect to database. Check internet and retry.");
+    } else {
+      LoggingUtils.log(Level.SEVERE, e);
+      setMessageBoxText("An unknown error has occurred, see log file.");
+    }
   }
 
   // helper methods for setting and clearing text box

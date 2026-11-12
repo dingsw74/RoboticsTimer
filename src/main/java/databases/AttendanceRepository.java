@@ -10,7 +10,9 @@ public interface AttendanceRepository {
 
   boolean isLoggedIn(int userRow);
 
-  LocalDateTime getLastLogin(int userRow);
+  Optional<LocalDateTime> getLastLogin(int userRow);
+
+  Optional<LocalDateTime> getLastLogout(int userRow);
 
   String getLastTimeHours(int userRow);
 

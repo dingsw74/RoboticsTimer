@@ -38,10 +38,13 @@ public class GoogleSheetsAttendanceRepository implements AttendanceRepository {
   }
 
   @Override
-  public LocalDateTime getLastLogin(int userRow) {
-    return LocalDateTime.parse(
-        dbUtils.getCellData(userRow, Constants.kLastLoginColumn, Constants.kMainSheet),
-        TIMESTAMP_FORMATTER);
+  public Optional<LocalDateTime> getLastLogin(int userRow) {
+    return getTimestamp(userRow, Constants.kLastLoginColumn);
+  }
+
+  @Override
+  public Optional<LocalDateTime> getLastLogout(int userRow) {
+    return getTimestamp(userRow, Constants.kLastLogoutColumn);
   }
 
   @Override
@@ -146,5 +149,13 @@ public class GoogleSheetsAttendanceRepository implements AttendanceRepository {
 
   private String valueOrEmpty(String value) {
     return value == null ? "" : value;
+  }
+
+  private Optional<LocalDateTime> getTimestamp(int userRow, int column) {
+    String value = dbUtils.getCellData(userRow, column, Constants.kMainSheet);
+    if (value == null || value.trim().isEmpty()) {
+      return Optional.empty();
+    }
+    return Optional.of(LocalDateTime.parse(value, TIMESTAMP_FORMATTER));
   }
 }

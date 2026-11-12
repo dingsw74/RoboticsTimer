@@ -22,9 +22,42 @@ public class AttendanceServiceTest {
     Assert.assertEquals(AttendanceStatus.LOGGED_OUT, service.getStatus(USER_ID));
     Assert.assertEquals("00:30:00", service.getSummary(USER_ID).get().getLastTimeHours());
     Assert.assertEquals("12:45:00", service.getSummary(USER_ID).get().getTotalHours());
+    Assert.assertEquals(
+        Optional.of(LocalDateTime.of(2026, 11, 9, 15, 30)),
+        service.getSummary(USER_ID).get().getLastLogin());
+    Assert.assertEquals(
+        Optional.of(LocalDateTime.of(2026, 11, 9, 16, 0)),
+        service.getSummary(USER_ID).get().getLastLogout());
 
     repository.loggedIn = true;
     Assert.assertEquals(AttendanceStatus.LOGGED_IN, service.getStatus(USER_ID));
+  }
+
+  @Test
+  public void summaryIncludesCurrentCheckInDuration() {
+    FakeAttendanceRepository repository = new FakeAttendanceRepository();
+    repository.loggedIn = true;
+    repository.lastLogin = LocalDateTime.of(2026, 11, 10, 11, 0);
+    AttendanceService service = service(repository, "2026-11-10T20:15:30Z");
+
+    AttendanceSummary summary = service.getSummary(USER_ID).get();
+
+    Assert.assertEquals(AttendanceStatus.LOGGED_IN, summary.getStatus());
+    Assert.assertEquals(4530, summary.getCurrentCheckInDuration().get().getSeconds());
+  }
+
+  @Test
+  public void summarySupportsUsersWithoutPreviousCheckIn() {
+    FakeAttendanceRepository repository = new FakeAttendanceRepository();
+    repository.lastLogin = null;
+    repository.lastLogout = null;
+
+    AttendanceSummary summary =
+        service(repository, "2026-11-10T20:00:00Z").getSummary(USER_ID).get();
+
+    Assert.assertFalse(summary.getLastLogin().isPresent());
+    Assert.assertFalse(summary.getLastLogout().isPresent());
+    Assert.assertFalse(summary.getCurrentCheckInDuration().isPresent());
   }
 
   @Test
@@ -72,7 +105,8 @@ public class AttendanceServiceTest {
   private static class FakeAttendanceRepository implements AttendanceRepository {
     private boolean userExists = true;
     private boolean loggedIn;
-    private LocalDateTime lastLogin;
+    private LocalDateTime lastLogin = LocalDateTime.of(2026, 11, 9, 15, 30);
+    private LocalDateTime lastLogout = LocalDateTime.of(2026, 11, 9, 16, 0);
     private String recordedElapsedTime;
 
     @Override
@@ -89,8 +123,13 @@ public class AttendanceServiceTest {
     }
 
     @Override
-    public LocalDateTime getLastLogin(int userRow) {
-      return lastLogin;
+    public Optional<LocalDateTime> getLastLogin(int userRow) {
+      return Optional.ofNullable(lastLogin);
+    }
+
+    @Override
+    public Optional<LocalDateTime> getLastLogout(int userRow) {
+      return Optional.ofNullable(lastLogout);
     }
 
     @Override
@@ -113,6 +152,7 @@ public class AttendanceServiceTest {
     public void recordLogout(
         String userId, int userRow, LocalDateTime logoutTime, String elapsedTime) {
       loggedIn = false;
+      lastLogout = logoutTime;
       recordedElapsedTime = elapsedTime;
     }
   }

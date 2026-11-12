@@ -51,7 +51,7 @@ tasks.register('runAttendanceApi', JavaExec) {
     doFirst {
         if (!project.hasProperty('testConfig')) {
             throw new GradleException(
-                'Set -PtestConfig=<path-to-test-config> to run the attendance test API.')
+            'Set -PtestConfig=<path-to-test-config> to run the attendance test API.')
         }
 
         args '--test-mode', '--config', project.property('testConfig').toString()

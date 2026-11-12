@@ -228,8 +228,13 @@ public class AttendanceHttpServerTest {
     }
 
     @Override
-    public LocalDateTime getLastLogin(int userRow) {
-      return lastLogin;
+    public Optional<LocalDateTime> getLastLogin(int userRow) {
+      return Optional.ofNullable(lastLogin);
+    }
+
+    @Override
+    public Optional<LocalDateTime> getLastLogout(int userRow) {
+      return Optional.of(LocalDateTime.of(2026, 11, 10, 11, 0));
     }
 
     @Override
